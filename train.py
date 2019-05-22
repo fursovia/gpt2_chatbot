@@ -2,16 +2,27 @@ import torch
 import torch.nn as nn
 import os
 import argparse
-from model import Model
+from model import Model, EmbeddingLayer
 from data_utils import CsvDataset
 from torch.utils.data import DataLoader
+from loss import triplet_loss, margin_loss, contrastive_loss
 
-def train_one_epoch(model, dataset):
+
+def train_one_epoch(model, optimizer, dataloader):
     model.train()
-    pass
+
+    for context, answer in dataloader:
+        optimizer.zero_grad()
+        context_embeddings = model(context)  # [batch_size, emb_size]
+        answer_embeddings = model(answer)  # [batch_size, emb_size]
+
+        loss = triplet_loss(context_embeddings, answer_embeddings)
+        loss.backward()
+
+        optimizer.step()
 
 
-def evaluate(model, dataset):
+def evaluate(model, dataloader):
     model.eval()
     pass
 
@@ -25,15 +36,30 @@ def default_params():
     return params
 
 
+def model_params():
+    params = dict()
+
+    params['loss'] = 'triples'
+    params['sampling'] = 'uniform'
+
+    return params
+
+
 def save_checkpoint(model, checkpoint_name):
 
     pass
 
 
+
+
+
 if __name__ == '__main__':
 
     params = default_params()
-    model = Model(emb_dim=params['emb_dim'])
+
+    ntokens = 100  # len(vocab) FIX!
+    emb_encoder = EmbeddingLayer(emb_dim=300, ntokens=ntokens)
+    model = Model(encoder=emb_encoder)
 
     datasets = dict()
     dataloaders = dict()
