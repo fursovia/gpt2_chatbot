@@ -30,7 +30,7 @@ class Model(nn.Module):
     def forward(self, ids):
 
         x = self.encoder(ids)
-        x = torch.mean(x, dim=-1)
+        x = torch.mean(x, dim=1)
         x = torch.relu(x)
         x = self.dense(x)
         return x
