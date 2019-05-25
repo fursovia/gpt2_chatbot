@@ -6,25 +6,39 @@ from model import Model, EmbeddingLayer
 from data_utils import CsvDataset
 from torch.utils.data import DataLoader
 from loss import triplet_loss, margin_loss, contrastive_loss
+from tensorboardX import SummaryWriter
 
 
-def train_one_epoch(model, optimizer, dataloader):
+parser = argparse.ArgumentParser()
+parser.add_argument('-c', '--cuda', default='0')
+parser.add_argument('-dd', '--data_dir', default='data')
+parser.add_argument('-md', '--model_dir', default='experiments')
+
+
+def train_one_epoch(model, optimizer, dataloader, writer, epoch, device):
     model.train()
 
-    for context, answer in dataloader:
+    for step, (context, answer) in enumerate(dataloader, start=epoch * len(dataloader)):
         optimizer.zero_grad()
-        context_embeddings = model(context)  # [batch_size, emb_size]
-        answer_embeddings = model(answer)  # [batch_size, emb_size]
+        context_embeddings = model(context.to(device))  # [batch_size, emb_size]
+        answer_embeddings = model(answer.to(device))  # [batch_size, emb_size]
 
         loss = triplet_loss(context_embeddings, answer_embeddings)
+        write_metrics(writer, step, loss.item())
         loss.backward()
 
         optimizer.step()
 
 
-def evaluate(model, dataloader):
+def evaluate(model, dataloader, writer, epoch, device):
     model.eval()
-    pass
+
+    with torch.no_grad():
+        for step, (context, answer) in enumerate(dataloader, start=epoch * len(dataloader)):
+            context_embeddings = model(context.to(device))  # [batch_size, emb_size]
+            answer_embeddings = model(answer.to(device))  # [batch_size, emb_size]
+            loss = triplet_loss(context_embeddings, answer_embeddings)
+            write_metrics(writer, step, loss.item(), prefix='eval')
 
 
 def default_params():
@@ -47,19 +61,30 @@ def model_params():
 
 def save_checkpoint(model, checkpoint_name):
 
-    pass
+    torch.save(model.state_dict(), checkpoint_name)
 
 
+def load_checkpoint(model, checkpoint_name):
 
+    model.load_state_dict(torch.load(checkpoint_name))
+
+    return model
+
+
+def write_metrics(writer, step, loss, prefix='train'):
+    writer.add_scalar(f'{prefix}_loss', loss, step)
 
 
 if __name__ == '__main__':
 
+    args = parser.parse_args()
+    os.environ['CUDA_VISIBLE_DEVICES'] = args.cuda
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     params = default_params()
 
-    ntokens = 100  # len(vocab) FIX!
-    emb_encoder = EmbeddingLayer(emb_dim=300, ntokens=ntokens)
-    model = Model(encoder=emb_encoder)
+    ntokens = sum(1 for _ in open(os.path.join(args.data_dir, 'vocab.txt'))) + 1
+    model = Model(emb_dim=300, ntokens=ntokens, output_dim=64).to(device)
 
     datasets = dict()
     dataloaders = dict()
@@ -68,8 +93,10 @@ if __name__ == '__main__':
         datasets[name] = CsvDataset(csv_path=f'{name}.csv')
         dataloaders[name] = DataLoader(datasets[name], batch_size=params['batch_size'], shuffle=shuffle)
 
+    writer = SummaryWriter(args.model_dir)
+    optimizer = torch.optim.Adam(model.parameters())
     for epoch in range(params['num_epochs']):
-        train_one_epoch(model, datasets['train'])
-        evaluate(model, datasets['test'])
+        train_one_epoch(model, optimizer, dataloaders['train'], writer, epoch, device)
+        evaluate(model, dataloaders['test'], writer, epoch, device)
 
-        save_checkpoint(model, f'checkpoint_{epoch}')
+        save_checkpoint(model, os.path.join(args.model_dir, f'checkpoint_{epoch}'))

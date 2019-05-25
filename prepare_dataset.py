@@ -4,6 +4,11 @@ import argparse
 import nltk
 import re
 from sklearn.model_selection import train_test_split
+from collections import Counter
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-dd', '--data_dir', default='data')
 
 
 def clean_sentence(text):
@@ -26,16 +31,18 @@ def load_data(data_path):
     return data
 
 
-def create_vocab(corpus):
-    vocab = dict()
-    vocab['<PAD>'] = 0
-    vocab['<UNK>'] = 1
+def create_vocab(corpus, min_freq=5):
+    vocab_couner = Counter()
 
     for text in corpus:
         words = text.split()
-        for word in words:
-            if word not in vocab:
-                vocab[word] = len(vocab)
+        vocab_couner.update(words)
+
+    popular_words = [word for word, count in vocab_couner.most_common() if count >= min_freq]
+    popular_words.insert(0, '<PAD>')
+    popular_words.insert(1, '<UNK>')
+
+    vocab = {word: i for i, word in enumerate(popular_words)}
 
     return vocab
 
@@ -51,8 +58,9 @@ DATA_PATH = 'data/sample.csv'
 
 
 if __name__ == '__main__':
+    args = parser.parse_args()
 
-    data = load_data(DATA_PATH)  # columns = ['context', 'answer']
+    data = load_data(os.path.join(args.data_dir, 'data.csv'))  # columns = ['context', 'answer']
 
     data['context'] = data['context'].map(clean_sentence)
     data['answer'] = data['answer'].map(clean_sentence)
@@ -61,6 +69,6 @@ if __name__ == '__main__':
 
     vocab = create_vocab(train['context'].tolist() + train['answer'].tolist())
 
-    save_vocab_to_txt(vocab, 'data/vocab.txt')
-    train.to_csv('data/train.csv', index=False)
-    test.to_csv('data/test.csv', index=False)
+    save_vocab_to_txt(vocab, os.path.join(args.data_dir, 'vocab.txt'))
+    train.to_csv(os.path.join(args.data_dir, 'train.csv'), index=False)
+    test.to_csv(os.path.join(args.data_dir, 'test.csv'), index=False)

@@ -21,9 +21,9 @@ class EmbeddingLayer(nn.Module):
 
 class Model(nn.Module):
 
-    def __init__(self, encoder, output_dim=128):
+    def __init__(self, emb_dim, ntokens, output_dim=128):
         super().__init__()
-        self.encoder = encoder  # EmbeddingLayer
+        self.encoder = EmbeddingLayer(emb_dim, ntokens)
         self.output_dim = output_dim
         self.dense = nn.Linear(in_features=self.encoder.emb_dim, out_features=self.output_dim)
 
