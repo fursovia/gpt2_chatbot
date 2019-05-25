@@ -9,6 +9,7 @@ from collections import Counter
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-dd', '--data_dir', default='data')
+parser.add_argument('-mf', '--min_freq', type=int, default=3)
 
 
 def clean_sentence(text):
@@ -64,7 +65,7 @@ if __name__ == '__main__':
 
     train, test = train_test_split(data, test_size=0.1, random_state=24)
 
-    vocab = create_vocab(train['context'].tolist() + train['answer'].tolist())
+    vocab = create_vocab(data['context'].tolist() + data['answer'].tolist(), min_freq=args.min_freq)
 
     save_vocab_to_txt(vocab, os.path.join(args.data_dir, 'vocab.txt'))
     train.to_csv(os.path.join(args.data_dir, 'train.csv'), index=False)

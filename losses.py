@@ -3,22 +3,28 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+# def cosine_distance(context, answer):
+#     """
+#     Args:
+#         x: tensor of shape [batch_size, emb_size]
+#         y: tensor of shape [batch_size, emb_size]
+#     Returns:
+#         cos_dists: tensor of shape [batch_size, batch_size]
+#     """
+#
+#     context = context.div(context.norm(p=2, dim=1, keepdim=True))
+#     answer = answer.div(answer.norm(p=2, dim=1, keepdim=True))
+#
+#     distances = torch.sub(1, torch.mm(context, answer.transpose(1, 0)))
+#     distances = torch.clamp_min(distances, 1e-8)
+#
+#     return distances
+
+
 def cosine_distance(context, answer):
-    """
-    Args:
-        x: tensor of shape [batch_size, emb_size]
-        y: tensor of shape [batch_size, emb_size]
-    Returns:
-        cos_dists: tensor of shape [batch_size, batch_size]
-    """
-
-    context = context.div(context.norm(p=2, dim=1, keepdim=True))
-    answer = answer.div(answer.norm(p=2, dim=1, keepdim=True))
-
-    distances = torch.sub(1, torch.mm(context, answer.transpose(1, 0)))
-    distances = torch.clamp_min(distances, 1e-8)
-
-    return distances
+    context = F.normalize(context)
+    answer = F.normalize(answer)
+    return torch.sub(1, torch.mm(context, answer.transpose(0, 1)))
 
 
 def batch_all_sampler(distances):
