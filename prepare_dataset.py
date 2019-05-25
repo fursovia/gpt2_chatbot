@@ -54,9 +54,6 @@ def save_vocab_to_txt(vocab, path):
             file.write(f'{word}\n')
 
 
-DATA_PATH = 'data/sample.csv'
-
-
 if __name__ == '__main__':
     args = parser.parse_args()
 

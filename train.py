@@ -3,7 +3,7 @@ import torch.nn as nn
 import os
 import argparse
 from model import Model, EmbeddingLayer
-from data_utils import CsvDataset
+from data_utils import CsvDataset, load_vocab
 from torch.utils.data import DataLoader
 from loss import triplet_loss, margin_loss, contrastive_loss
 from tensorboardX import SummaryWriter
@@ -53,13 +53,15 @@ def default_params():
     return params
 
 
-def model_params():
-    params = dict()
-
-    params['loss'] = 'triples'
-    params['sampling'] = 'uniform'
-
-    return params
+# def model_params():
+#     params = dict()
+#
+#     params['loss'] = 'triples'
+#     params['sampling'] = 'uniform'
+#     params['emb_dim'] = 300
+#     params['output_dim'] = 64
+#
+#     return params
 
 
 def save_checkpoint(model, checkpoint_name):
@@ -84,6 +86,9 @@ if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = args.cuda
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+    if not os.path.exists(args.model_dir):
+        os.makedirs(args.model_dir)
+
     params = default_params()
 
     ntokens = sum(1 for _ in open(os.path.join(args.data_dir, 'vocab.txt'))) + 1
@@ -91,16 +96,17 @@ if __name__ == '__main__':
 
     datasets = dict()
     dataloaders = dict()
+    vocab = load_vocab(os.path.join(args.data_dir, 'vocab.txt'))
     for name in ['train', 'test']:
         shuffle = name == 'train'
         datasets[name] = CsvDataset(
             csv_path=os.path.join(args.data_dir, f'{name}.csv'),
-            vocab_path=os.path.join(args.data_dir, 'vocab.txt')
+            vocab=vocab
         )
         dataloaders[name] = DataLoader(datasets[name], batch_size=params['batch_size'], shuffle=shuffle)
 
     writer = SummaryWriter(args.model_dir)
-    optimizer = torch.optim.Adam(model.parameters())
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.003)
     for epoch in range(params['num_epochs']):
         train_one_epoch(model, optimizer, dataloaders['train'], writer, epoch, device)
         evaluate(model, dataloaders['test'], writer, epoch, device)

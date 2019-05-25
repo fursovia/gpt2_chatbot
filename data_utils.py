@@ -19,7 +19,7 @@ def vectorize(text, vocab, max_len=20):
             vectorized.append(vocab['<UNK>'])
             
     if len(words) < max_len:
-        vectorized.extend([vocab['<PAD>']]*(max_len - len(words)))
+        vectorized.extend([vocab['<PAD>']] * (max_len - len(words)))
         
     return vectorized
 
@@ -38,9 +38,10 @@ def load_vocab(txt_path):
 
 class CsvDataset(Dataset):
 
-    def __init__(self, csv_path, vocab_path, max_len=20):
+    def __init__(self, csv_path, vocab, max_len=20):
         self.data = pd.read_csv(csv_path)
-        self.vocab = load_vocab(vocab_path)
+        self.word2idx = vocab
+        self.idx2word = {i: word for word, i in self.word2idx.items()}
 
         self.context = self.data['context'].values
         self.answer = self.data['answer'].values
@@ -50,8 +51,8 @@ class CsvDataset(Dataset):
     def __getitem__(self, item):
 
         # TODO: change to https://torchtext.readthedocs.io/en/latest/examples.html
-        cont = vectorize(self.context[item], self.vocab, self.max_len)
-        ans = vectorize(self.answer[item], self.vocab, self.max_len)
+        cont = vectorize(self.context[item], self.word2idx, self.max_len)
+        ans = vectorize(self.answer[item], self.word2idx, self.max_len)
 
         cont = torch.tensor(cont)
         ans = torch.tensor(ans)

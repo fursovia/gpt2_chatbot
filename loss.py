@@ -35,7 +35,7 @@ def batch_all_sampler(distances):
     return mask.float()
 
 
-def triplet_loss(context_embeddings, answer_embeddings, margin=0.2):
+def triplet_loss(context_embeddings, answer_embeddings, margin=0.05):
 
     cos_dists = cosine_distance(context_embeddings, answer_embeddings)
     mask = batch_all_sampler(cos_dists)
