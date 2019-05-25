@@ -15,6 +15,12 @@ def clean_sentence(text):
 def load_data(data_path):
     data = pd.read_csv(data_path)
 
+    if 'Label' in data.columns:
+        data.drop(columns='Label', inplace=True)
+
+    if 'Context' in data.columns and 'Utterance' in data.columns:
+        data.rename(columns={'Context': 'context', 'Utterance': 'answer'}, inplace=True)
+
     return data
 
 

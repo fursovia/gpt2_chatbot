@@ -51,7 +51,7 @@ def triplet_loss(context_embeddings, answer_embeddings, margin=0.2):
     return triplet_loss
 
 
-def margin_loss(context_embeddings, answer_embeddings):
+def margin_loss(context_embeddings, answer_embeddings, beta=0.4, margin=0.1):
     pass
 
 
