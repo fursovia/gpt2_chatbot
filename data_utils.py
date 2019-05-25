@@ -17,7 +17,10 @@ def vectorize(text, vocab, max_len=20):
             vectorized.append(vocab[word])
         else:
             vectorized.append(vocab['<UNK>'])
-    # TODO: pad output
+            
+    if len(words) < max_len:
+        vectorized.extend([vocab['<PAD>']]*(max_len - len(words)))
+        
     return vectorized
 
 
@@ -27,9 +30,9 @@ def load_vocab(txt_path):
     with open(txt_path, 'r') as file:
         c = 0
         for line in file:
-            vocab[line] = c
+            vocab[line.strip()] = c
             c += 1
-
+            
     return vocab
 
 
