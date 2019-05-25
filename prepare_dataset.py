@@ -21,6 +21,8 @@ def load_data(data_path):
     if 'Context' in data.columns and 'Utterance' in data.columns:
         data.rename(columns={'Context': 'context', 'Utterance': 'answer'}, inplace=True)
 
+    assert 'context' in data.columns and 'answer' in data.columns
+
     return data
 
 
