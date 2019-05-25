@@ -15,7 +15,7 @@ parser.add_argument('-dd', '--data_dir', default='data')
 parser.add_argument('-md', '--model_dir', default='experiments')
 
 
-def train_one_epoch(model, optimizer, dataloader, writer, epoch, device):
+def train_one_epoch(model, optimizer, dataloader, writer, epoch, device, write_steps=50):
     model.train()
 
     for step, (context, answer) in enumerate(dataloader, start=epoch * len(dataloader)):
@@ -24,7 +24,9 @@ def train_one_epoch(model, optimizer, dataloader, writer, epoch, device):
         answer_embeddings = model(answer.to(device))  # [batch_size, emb_size]
 
         loss = triplet_loss(context_embeddings, answer_embeddings)
-        write_metrics(writer, step, loss.item())
+        if step % write_steps == 0:
+            print(f'Epoch = {epoch}, step = {step}, train_loss = {loss.item()}')
+            write_metrics(writer, step, loss.item())
         loss.backward()
 
         optimizer.step()
@@ -39,6 +41,7 @@ def evaluate(model, dataloader, writer, epoch, device):
             answer_embeddings = model(answer.to(device))  # [batch_size, emb_size]
             loss = triplet_loss(context_embeddings, answer_embeddings)
             write_metrics(writer, step, loss.item(), prefix='eval')
+            print(f'Epoch = {epoch}, step = {step}, eval_loss = {loss.item()}')
 
 
 def default_params():
@@ -90,7 +93,10 @@ if __name__ == '__main__':
     dataloaders = dict()
     for name in ['train', 'test']:
         shuffle = name == 'train'
-        datasets[name] = CsvDataset(csv_path=f'{name}.csv')
+        datasets[name] = CsvDataset(
+            csv_path=os.path.join(args.data_dir, f'{name}.csv'),
+            vocab_path=os.path.join(args.data_dir, 'vocab.txt')
+        )
         dataloaders[name] = DataLoader(datasets[name], batch_size=params['batch_size'], shuffle=shuffle)
 
     writer = SummaryWriter(args.model_dir)
