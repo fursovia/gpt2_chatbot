@@ -21,16 +21,20 @@ class EmbeddingLayer(nn.Module):
 
 class Model(nn.Module):
 
-    def __init__(self, emb_dim, ntokens, output_dim=128):
+    def __init__(self, emb_dim, ntokens, hidden_dim=128, output_dim=64):
         super().__init__()
         self.encoder = EmbeddingLayer(emb_dim, ntokens)
         self.output_dim = output_dim
-        self.dense = nn.Linear(in_features=self.encoder.emb_dim, out_features=self.output_dim)
+        self.hidden_dim = hidden_dim
+        self.hidden_dense = nn.Linear(in_features=self.encoder.emb_dim, out_features=self.hidden_dim)
+        self.last_dense = nn.Linear(in_features=hidden_dim, out_features=self.output_dim)
 
     def forward(self, ids):
 
         x = self.encoder(ids)
         x = torch.mean(x, dim=1)
+        x = self.hidden_dense(x)
         x = torch.relu(x)
-        x = self.dense(x)
+        x = self.last_dense(x)
+
         return x

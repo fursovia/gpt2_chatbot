@@ -21,6 +21,17 @@ import torch.nn.functional as F
 #     return distances
 
 
+def bce(X, Y):
+
+    # X = F.normalize(X)
+    # Y = F.normalize(Y)
+    cos_sim = torch.mm(X, Y.transpose(0, 1))
+
+    targets = torch.eye(X.shape[0], device=X.device)
+
+    return F.binary_cross_entropy_with_logits(cos_sim, targets) * X.shape[0]
+
+
 def cosine_distance(context, answer):
     context = F.normalize(context)
     answer = F.normalize(answer)

@@ -5,17 +5,19 @@ import argparse
 from model import Model, EmbeddingLayer
 from data_utils import CsvDataset, load_vocab
 from torch.utils.data import DataLoader
-from losses import triplet_loss, margin_loss, contrastive_loss
+from losses import triplet_loss, margin_loss, contrastive_loss, bce
 from tensorboardX import SummaryWriter
+import numpy as np
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-c', '--cuda', default='0')
 parser.add_argument('-dd', '--data_dir', default='data')
 parser.add_argument('-md', '--model_dir', default='experiments')
+parser.add_argument('-l', '--loss', default='triplet', choices=['triplet', 'bce'])
 
 
-def train_one_epoch(model, optimizer, dataloader, writer, epoch, device, write_steps=50):
+def train_one_epoch(model, optimizer, dataloader, writer, epoch, device, loss_type='bce', write_steps=50):
     model.train()
 
     for step, (context, answer) in enumerate(dataloader, start=epoch * len(dataloader)):
@@ -24,8 +26,13 @@ def train_one_epoch(model, optimizer, dataloader, writer, epoch, device, write_s
         context_embeddings = model(context.to(device))  # [batch_size, emb_size]
         answer_embeddings = model(answer.to(device))  # [batch_size, emb_size]
 
-        loss = triplet_loss(context_embeddings, answer_embeddings)
-        # loss = bce(context_embeddings, answer_embeddings)
+        if loss_type == 'bce':
+            loss = bce(context_embeddings, answer_embeddings)
+        elif loss_type == 'triplet':
+            loss = triplet_loss(context_embeddings, answer_embeddings)
+        else:
+            raise NotImplemented('No such loss')
+
         if step % write_steps == 0:
             print(f'Epoch = {epoch}, step = {step}, train_loss = {loss.item()}')
             write_metrics(writer, step, loss.item())
@@ -33,24 +40,30 @@ def train_one_epoch(model, optimizer, dataloader, writer, epoch, device, write_s
         optimizer.step()
 
 
-def evaluate(model, dataloader, writer, epoch, device):
+def evaluate(model, dataloader, writer, epoch, device, loss_type='bce'):
     model.eval()
-
-    for step, (context, answer) in enumerate(dataloader, start=epoch * len(dataloader)):
+    loss_history = []
+    for context, answer in dataloader:
         context_embeddings = model(context.to(device))  # [batch_size, emb_size]
         answer_embeddings = model(answer.to(device))  # [batch_size, emb_size]
 
-        loss = triplet_loss(context_embeddings, answer_embeddings)
-        # loss = bce(context_embeddings, answer_embeddings)
-        write_metrics(writer, step, loss.item(), prefix='eval')
-        print(f'Epoch = {epoch}, step = {step}, eval_loss = {loss.item()}')
+        if loss_type == 'bce':
+            loss = bce(context_embeddings, answer_embeddings)
+        elif loss_type == 'triplet':
+            loss = triplet_loss(context_embeddings, answer_embeddings)
+        else:
+            raise NotImplemented('No such loss')
+        loss_history.append(loss.item())
+
+    loss_value = np.mean(loss_history)
+    write_metrics(writer, epoch * len(dataloader), loss_value, prefix='eval')
+    print(f'Epoch = {epoch}, step = {epoch * len(dataloader)}, eval_loss = {loss_value}')
 
 
 def default_params():
     params = dict()
-    params['emb_dim'] = 300
-    params['batch_size'] = 64
-    params['num_epochs'] = 500
+    params['batch_size'] = 128
+    params['num_epochs'] = 50
 
     return params
 
@@ -94,7 +107,7 @@ if __name__ == '__main__':
     params = default_params()
 
     ntokens = sum(1 for _ in open(os.path.join(args.data_dir, 'vocab.txt'))) + 1
-    model = Model(emb_dim=64, ntokens=ntokens, output_dim=32).to(device)
+    model = Model(emb_dim=64, ntokens=ntokens, hidden_dim=32, output_dim=16).to(device)
 
     datasets = dict()
     dataloaders = dict()
@@ -115,8 +128,8 @@ if __name__ == '__main__':
         )
 
     writer = SummaryWriter(args.model_dir)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.003)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0003)
     for epoch in range(params['num_epochs']):
-        train_one_epoch(model, optimizer, dataloaders['train'], writer, epoch, device)
-        evaluate(model, dataloaders['test'], writer, epoch, device)
+        train_one_epoch(model, optimizer, dataloaders['train'], writer, epoch, device, loss_type=args.loss)
+        evaluate(model, dataloaders['test'], writer, epoch, device, loss_type=args.loss)
         save_checkpoint(model, os.path.join(args.model_dir, f'checkpoint_{epoch}'))

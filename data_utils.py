@@ -10,6 +10,7 @@ def vectorize(text, vocab, max_len=20):
     words = text.split()
 
     for i, word in enumerate(words):
+        # TODO: crop from the beggining for context
         if i >= max_len:
             break
 
@@ -37,6 +38,7 @@ def load_vocab(txt_path):
 
 
 class CsvDataset(Dataset):
+    # TODO: try keras tokenizer https://keras.io/preprocessing/text/
 
     def __init__(self, csv_path, vocab, max_len=20):
         self.data = pd.read_csv(csv_path)
