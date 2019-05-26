@@ -8,6 +8,8 @@ from torch.utils.data import DataLoader
 from losses import triplet_loss, margin_loss, contrastive_loss, bce
 from tensorboardX import SummaryWriter
 import numpy as np
+import faiss
+from metrics import calculate_mrr
 
 
 parser = argparse.ArgumentParser()
@@ -41,6 +43,9 @@ def train_one_epoch(model, optimizer, dataloader, writer, epoch, device, loss_ty
 
 
 def evaluate(model, dataloader, writer, epoch, device, loss_type='bce'):
+    contexts = []
+    answers = []
+
     model.eval()
     loss_history = []
     for context, answer in dataloader:
@@ -55,9 +60,24 @@ def evaluate(model, dataloader, writer, epoch, device, loss_type='bce'):
             raise NotImplemented('No such loss')
         loss_history.append(loss.item())
 
+        contexts.append(context_embeddings.detach().numpy())
+        answers.append(answer_embeddings.detach().numpy())
+
     loss_value = np.mean(loss_history)
-    write_metrics(writer, epoch * len(dataloader), loss_value, prefix='eval')
-    print(f'Epoch = {epoch}, step = {epoch * len(dataloader)}, eval_loss = {loss_value}')
+
+    contexts = np.array(contexts).reshape(-1, contexts[-1].shape[-1])
+    answers = np.array(answers).reshape(-1, answers[-1].shape[-1])
+
+    emb_size = answers.shape[1]
+    faiss_index = faiss.IndexFlat(emb_size)
+
+    faiss_index.verbose = True
+    faiss_index.add(answers)
+    _, indexes = faiss_index.search(contexts, k=20)
+
+    mrr = calculate_mrr(y_true=np.arange(indexes.shape[0]).reshape(-1, 1), preds=indexes)
+    write_metrics(writer, epoch * len(dataloader), loss_value, mrr=mrr, prefix='eval')
+    print(f'Epoch = {epoch}, step = {epoch * len(dataloader)}, eval_loss = {loss_value}, mrr = {mrr}')
 
 
 def default_params():
@@ -91,8 +111,10 @@ def load_checkpoint(model, checkpoint_name):
     return model
 
 
-def write_metrics(writer, step, loss, prefix='train'):
+def write_metrics(writer, step, loss, mrr=None, prefix='train'):
     writer.add_scalar(f'losses/{prefix}_loss', loss, step)
+    if mrr is not None:
+        writer.add_scalar(f'metrics/{prefix}_mrr', mrr, step)
 
 
 if __name__ == '__main__':
