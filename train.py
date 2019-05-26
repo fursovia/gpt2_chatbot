@@ -60,8 +60,8 @@ def evaluate(model, dataloader, writer, epoch, device, loss_type='bce'):
             raise NotImplemented('No such loss')
         loss_history.append(loss.item())
 
-        contexts.append(context_embeddings.detach().numpy())
-        answers.append(answer_embeddings.detach().numpy())
+        contexts.append(context_embeddings.cpu().numpy())
+        answers.append(answer_embeddings.cpu().numpy())
 
     loss_value = np.mean(loss_history)
 
