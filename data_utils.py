@@ -72,11 +72,12 @@ class CsvDataset(Dataset):
         if self.tokenizer is None:
             cont = vectorize(self.context[item], self.word2idx, self.max_len)
             ans = vectorize(self.answer[item], self.word2idx, self.max_len)
-            cont = torch.tensor(cont)
-            ans = torch.tensor(ans)
         else:
             cont = self.tokenizer.encode(self.context[item])
             ans = self.tokenizer.encode(self.answer[item])
+
+        cont = torch.tensor(cont)
+        ans = torch.tensor(ans)
 
         return cont, ans
 
