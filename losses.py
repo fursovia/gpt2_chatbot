@@ -42,7 +42,7 @@ def batch_all_sampler(distances):
 
     batch_size = distances.shape[0]
 
-    label_equal = torch.diagflat(torch.ones(batch_size)).byte()
+    label_equal = torch.eye(batch_size, device=distances.device).byte()
     i_equal_j = label_equal.unsqueeze(2)
     i_equal_k = label_equal.unsqueeze(1)
 
@@ -52,7 +52,7 @@ def batch_all_sampler(distances):
     return mask.float()
 
 
-def triplet_loss(context_embeddings, answer_embeddings, margin=0.05):
+def triplet_loss(context_embeddings, answer_embeddings, margin=0.3):
 
     cos_dists = cosine_distance(context_embeddings, answer_embeddings)
     mask = batch_all_sampler(cos_dists)
@@ -62,7 +62,7 @@ def triplet_loss(context_embeddings, answer_embeddings, margin=0.05):
     triplet_loss = F.relu(anchor_positive_dist - anchor_negative_dist + margin)
     triplet_loss = triplet_loss * mask
 
-    num_positive_triplets = torch.gt(triplet_loss, 1e-16).sum()
+    num_positive_triplets = torch.gt(triplet_loss, 1e-16).sum().float()
     triplet_loss = triplet_loss.sum() / (num_positive_triplets + 1e-16)
 
     return triplet_loss
