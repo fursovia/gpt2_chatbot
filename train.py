@@ -23,7 +23,7 @@ parser.add_argument('-l', '--loss', default='triplet', choices=['triplet', 'bce'
 def train_one_epoch(model, optimizer, dataloader, writer, epoch, device, loss_type='bce', write_steps=50):
     model.train()
 
-    for step, (context, answer) in enumerate(dataloader, start=epoch * len(dataloader)):
+    for step, ((context, context_len), (answer, answer_len)) in enumerate(dataloader, start=epoch * len(dataloader)):
         # print(context.shape, answer.shape)
         optimizer.zero_grad()
         context_embeddings = model(context.to(device))  # [batch_size, emb_size]
@@ -49,7 +49,7 @@ def evaluate(model, dataloader, writer, epoch, device, loss_type='bce'):
 
     model.eval()
     loss_history = []
-    for context, answer in dataloader:
+    for (context, context_len), (answer, answer_len) in dataloader:
         context_embeddings = model(context.to(device))  # [batch_size, emb_size]
         answer_embeddings = model(answer.to(device))  # [batch_size, emb_size]
 

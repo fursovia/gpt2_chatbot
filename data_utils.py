@@ -5,6 +5,8 @@ import numpy as np
 from pytorch_pretrained_bert import OpenAIGPTTokenizer
 from pytorch_pretrained_bert import GPT2Tokenizer
 
+PAD_VALUE = 123  # '¿'
+
 
 def vectorize(text, vocab, max_len=20):
 
@@ -20,11 +22,12 @@ def vectorize(text, vocab, max_len=20):
             vectorized.append(vocab[word])
         else:
             vectorized.append(vocab['<UNK>'])
-            
+    true_len = len(vectorized)
+
     if len(words) < max_len:
         vectorized.extend([vocab['<PAD>']] * (max_len - len(words)))
         
-    return vectorized
+    return vectorized, true_len
 
 
 def get_tokenizer(tokenizer_name):
@@ -51,6 +54,15 @@ def load_vocab(txt_path):
     return vocab
 
 
+def crop_or_pad(x, pad_value=-1, max_len=40):
+    if len(x) >= max_len:
+        x = x[:max_len]
+    else:
+        x.extend([pad_value] * (max_len - len(x)))
+
+    return x
+
+
 class CsvDataset(Dataset):
     # TODO: try keras tokenizer https://keras.io/preprocessing/text/
 
@@ -70,16 +82,22 @@ class CsvDataset(Dataset):
 
         # TODO: change to https://torchtext.readthedocs.io/en/latest/examples.html
         if self.tokenizer is None:
-            cont = vectorize(self.context[item], self.word2idx, self.max_len)
-            ans = vectorize(self.answer[item], self.word2idx, self.max_len)
+            cont, true_cont_len = vectorize(self.context[item], self.word2idx, self.max_len)
+            ans, true_ans_len = vectorize(self.answer[item], self.word2idx, self.max_len)
         else:
             cont = self.tokenizer.encode(self.context[item])
             ans = self.tokenizer.encode(self.answer[item])
 
+            true_cont_len = torch.tensor(len(cont)) if len(cont) <= self.max_len else self.max_len
+            true_ans_len = torch.tensor(len(ans)) if len(ans) <= self.max_len else self.max_len
+
+            cont = crop_or_pad(cont, pad_value=PAD_VALUE, max_len=self.max_len)
+            ans = crop_or_pad(ans, pad_value=PAD_VALUE, max_len=self.max_len)
+
         cont = torch.tensor(cont)
         ans = torch.tensor(ans)
 
-        return cont, ans
+        return (cont, true_cont_len), (ans, true_ans_len)
 
     def __len__(self):
         return self.data.shape[0]

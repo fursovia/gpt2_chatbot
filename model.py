@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from pytorch_pretrained_bert import OpenAIGPTTokenizer, OpenAIGPTModel
 from pytorch_pretrained_bert import GPT2Tokenizer, GPT2Model
+from data_utils import PAD_VALUE
 
 
 class EmbeddingLayer(nn.Module):
@@ -31,7 +32,7 @@ class Model(nn.Module):
         self.hidden_dense = nn.Linear(in_features=self.encoder.emb_dim, out_features=self.hidden_dim)
         self.last_dense = nn.Linear(in_features=hidden_dim, out_features=self.output_dim)
 
-    def forward(self, ids):
+    def forward(self, ids, true_len=None):
 
         x = self.encoder(ids)
         x = torch.mean(x, dim=1)
@@ -65,7 +66,7 @@ class PretrainedModel(nn.Module):
         if self.add_dense:
             self.dense = nn.Linear(in_features=768, out_features=128)
 
-    def forward(self, ids):
+    def forward(self, ids, true_len=None):
 
         if self.model_name == 'GPT':
             output = self.encoder(ids)
@@ -74,6 +75,7 @@ class PretrainedModel(nn.Module):
         else:
             raise NotImplementedError(f'{self.model_name} -- No such model')
 
+        output = torch.masked_fill(output, ids.unsqueeze(-1) == PAD_VALUE, 0)
         output = torch.mean(output, dim=1)
 
         if self.add_dense:
