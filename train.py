@@ -138,7 +138,7 @@ if __name__ == '__main__':
     elif args.model in ['GPT', 'GPT-2']:
         model = PretrainedModel(model_name=args.model).to(device)
         vocab = None
-        tokenizer = get_tokenizer(args.model_name)
+        tokenizer = get_tokenizer(args.model)
     else:
         raise NotImplementedError(f'{args.model} --- no such model')
 
