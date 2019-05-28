@@ -84,12 +84,15 @@ class CsvDataset(Dataset):
         if self.tokenizer is None:
             cont, true_cont_len = vectorize(self.context[item], self.word2idx, self.max_len)
             ans, true_ans_len = vectorize(self.answer[item], self.word2idx, self.max_len)
+
+            true_cont_len = torch.tensor(true_cont_len)
+            true_ans_len = torch.tensor(true_ans_len)
         else:
             cont = self.tokenizer.encode(self.context[item])
             ans = self.tokenizer.encode(self.answer[item])
 
-            true_cont_len = torch.tensor(len(cont)) if len(cont) <= self.max_len else self.max_len
-            true_ans_len = torch.tensor(len(ans)) if len(ans) <= self.max_len else self.max_len
+            true_cont_len = torch.tensor(len(cont)) if len(cont) <= self.max_len else torch.tensor(self.max_len)
+            true_ans_len = torch.tensor(len(ans)) if len(ans) <= self.max_len else torch.tensor(self.max_len)
 
             cont = crop_or_pad(cont, pad_value=PAD_VALUE, max_len=self.max_len)
             ans = crop_or_pad(ans, pad_value=PAD_VALUE, max_len=self.max_len)
