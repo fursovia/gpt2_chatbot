@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 import os
 import argparse
-from model import Model, EmbeddingLayer
-from data_utils import CsvDataset, load_vocab
+from model import Model, PretrainedModel
+from data_utils import CsvDataset, load_vocab, get_tokenizer
 from torch.utils.data import DataLoader
 from losses import triplet_loss, margin_loss, contrastive_loss, bce
 from tensorboardX import SummaryWriter
@@ -16,6 +16,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-c', '--cuda', default='0')
 parser.add_argument('-dd', '--data_dir', default='data')
 parser.add_argument('-md', '--model_dir', default='experiments')
+parser.add_argument('--model', default='DAN', choices=['DAN', 'GPT', 'GPT-2'])
 parser.add_argument('-l', '--loss', default='triplet', choices=['triplet', 'bce'])
 
 
@@ -129,17 +130,28 @@ if __name__ == '__main__':
     params = default_params()
 
     ntokens = sum(1 for _ in open(os.path.join(args.data_dir, 'vocab.txt'))) + 1
-    model = Model(emb_dim=64, ntokens=ntokens, hidden_dim=32, output_dim=16).to(device)
+
+    if args.model == 'DAN':
+        model = Model(emb_dim=64, ntokens=ntokens, hidden_dim=32, output_dim=16).to(device)
+        vocab = load_vocab(os.path.join(args.data_dir, 'vocab.txt'))
+        tokenizer = None
+    elif args.model in ['GPT', 'GPT-2']:
+        model = PretrainedModel(model_name=args.model).to(device)
+        vocab = None
+        tokenizer = get_tokenizer(args.model_name)
+    else:
+        raise NotImplementedError(f'{args.model} --- no such model')
 
     datasets = dict()
     dataloaders = dict()
-    vocab = load_vocab(os.path.join(args.data_dir, 'vocab.txt'))
+
     for name in ['train', 'test']:
         shuffle = name == 'train'
         datasets[name] = CsvDataset(
             csv_path=os.path.join(args.data_dir, f'{name}.csv'),
             vocab=vocab,
-            max_len=20
+            max_len=20,
+            tokenizer=tokenizer
         )
 
         dataloaders[name] = DataLoader(
@@ -150,7 +162,7 @@ if __name__ == '__main__':
         )
 
     writer = SummaryWriter(args.model_dir)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0003)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.003)
     for epoch in range(params['num_epochs']):
         train_one_epoch(model, optimizer, dataloaders['train'], writer, epoch, device, loss_type=args.loss)
         evaluate(model, dataloaders['test'], writer, epoch, device, loss_type=args.loss)

@@ -2,6 +2,8 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 import pandas as pd
 import numpy as np
+from pytorch_pretrained_bert import OpenAIGPTTokenizer
+from pytorch_pretrained_bert import GPT2Tokenizer
 
 
 def vectorize(text, vocab, max_len=20):
@@ -25,6 +27,18 @@ def vectorize(text, vocab, max_len=20):
     return vectorized
 
 
+def get_tokenizer(tokenizer_name):
+    if tokenizer_name == 'GPT-2':
+        tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+    elif tokenizer_name == 'GPT':
+        tokenizer = OpenAIGPTTokenizer.from_pretrained('openai-gpt')
+    else:
+        raise NotImplementedError(f'{tokenizer_name} -- No such tokenizer')
+
+    return tokenizer
+
+
+
 def load_vocab(txt_path):
 
     vocab = dict()
@@ -40,24 +54,29 @@ def load_vocab(txt_path):
 class CsvDataset(Dataset):
     # TODO: try keras tokenizer https://keras.io/preprocessing/text/
 
-    def __init__(self, csv_path, vocab, max_len=20):
+    def __init__(self, csv_path, vocab=None, max_len=20, tokenizer=None):
         self.data = pd.read_csv(csv_path)
         self.word2idx = vocab
-        self.idx2word = {i: word for word, i in self.word2idx.items()}
+        if self.word2idx is not None:
+            self.idx2word = {i: word for word, i in self.word2idx.items()}
 
         self.context = self.data['context'].values
         self.answer = self.data['answer'].values
 
         self.max_len = max_len
+        self.tokenizer = tokenizer
 
     def __getitem__(self, item):
 
         # TODO: change to https://torchtext.readthedocs.io/en/latest/examples.html
-        cont = vectorize(self.context[item], self.word2idx, self.max_len)
-        ans = vectorize(self.answer[item], self.word2idx, self.max_len)
-
-        cont = torch.tensor(cont)
-        ans = torch.tensor(ans)
+        if self.tokenizer is None:
+            cont = vectorize(self.context[item], self.word2idx, self.max_len)
+            ans = vectorize(self.answer[item], self.word2idx, self.max_len)
+            cont = torch.tensor(cont)
+            ans = torch.tensor(ans)
+        else:
+            cont = self.tokenizer.encode(self.context[item])
+            ans = self.tokenizer.encode(self.answer[item])
 
         return cont, ans
 

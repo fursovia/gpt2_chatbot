@@ -14,7 +14,6 @@ def calculate_mrr(y_true, preds):
     return mrr
 
 
-
 def calculate_precision_at_k(context, response, k=3):
     pass
 

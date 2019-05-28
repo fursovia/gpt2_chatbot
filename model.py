@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+from pytorch_pretrained_bert import OpenAIGPTTokenizer, OpenAIGPTModel
+from pytorch_pretrained_bert import GPT2Tokenizer, GPT2Model
 
 
 class EmbeddingLayer(nn.Module):
@@ -38,3 +40,43 @@ class Model(nn.Module):
         x = self.last_dense(x)
 
         return x
+
+
+class PretrainedModel(nn.Module):
+
+    def __init__(self, model_name, add_dense=True, trainable=False):
+        super().__init__()
+
+        self.model_name = model_name
+        self.add_dense = add_dense
+        self.trainable = trainable
+
+        if self.model_name == 'GPT':
+            self.encoder = OpenAIGPTModel.from_pretrained('openai-gpt')
+        elif self.model_name == 'GPT-2':
+            self.encoder = GPT2Model.from_pretrained('gpt2')
+        else:
+            raise NotImplementedError(f'{self.model_name} -- No such model')
+
+        if not self.trainable:
+            for p in self.encoder.parameters():
+                p.requires_grad = False
+
+        if self.add_dense:
+            self.dense = nn.Linear(in_features=768, out_features=128)
+
+    def forward(self, ids):
+
+        if self.model_name == 'GPT':
+            output = self.encoder(ids)
+        elif self.model_name == 'GPT-2':
+            output = self.encoder(ids)
+        else:
+            raise NotImplementedError(f'{self.model_name} -- No such model')
+
+        output = torch.mean(output, dim=1)
+
+        if self.add_dense:
+            output = self.dense(output)
+
+        return output
