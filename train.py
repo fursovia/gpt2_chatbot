@@ -74,7 +74,7 @@ def evaluate(model, dataloader, writer, epoch, device, loss_type='bce'):
 
     faiss_index.verbose = True
     faiss_index.add(answers)
-    _, indexes = faiss_index.search(contexts, k=20)
+    _, indexes = faiss_index.search(contexts, k=100)
 
     mrr = calculate_mrr(y_true=np.arange(indexes.shape[0]).reshape(-1, 1), preds=indexes)
     write_metrics(writer, epoch * len(dataloader), loss_value, mrr=mrr, prefix='eval')
@@ -150,7 +150,7 @@ if __name__ == '__main__':
         datasets[name] = CsvDataset(
             csv_path=os.path.join(args.data_dir, f'{name}.csv'),
             vocab=vocab,
-            max_len=20,
+            max_len=50,
             tokenizer=tokenizer
         )
 
