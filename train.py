@@ -105,9 +105,9 @@ def save_checkpoint(model, checkpoint_name):
     torch.save(model.state_dict(), checkpoint_name)
 
 
-def load_checkpoint(model, checkpoint_name):
+def load_checkpoint(model, checkpoint_name, map_location=None):
 
-    model.load_state_dict(torch.load(checkpoint_name))
+    model.load_state_dict(torch.load(checkpoint_name, map_location=map_location))
 
     return model
 

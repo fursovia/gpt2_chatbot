@@ -86,12 +86,13 @@ if __name__ == '__main__':
     data = load_data(os.path.join(args.data_dir, 'data.csv'))  # columns = ['context', 'answer']
 
     print('Cleaning the data ...')
+    data['original_answers'] = data['answer']
     data['context'] = data['context'].map(clean_sentence)
     data['answer'] = data['answer'].map(clean_sentence)
 
     data = data[(data['context'].map(len) > 0) & (data['answer'].map(len) > 0)]
 
-    train, test = train_test_split(data, test_size=0.1, random_state=24)
+    train, test = train_test_split(data[~data['answer'].duplicated()], test_size=0.1, random_state=24)
 
     vocab = create_vocab(data['context'].tolist() + data['answer'].tolist(), min_freq=args.min_freq)
 

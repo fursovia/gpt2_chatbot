@@ -21,7 +21,9 @@ parser.add_argument('--model', default='GPT', choices=['DAN', 'GPT', 'GPT-2'])
 parser.add_argument('-l', '--loss', default='triplet', choices=['triplet', 'bce'])
 parser.add_argument('-e', '--epoch', default='2')
 parser.add_argument('-t', '--train', default='True', choices=['True', 'False'])
-class Predictor():
+
+
+class Predictor:
     def __init__(self, model, tokenizer, k=1):
         super().__init__()
         self.model = model

@@ -71,7 +71,7 @@ class PretrainedModel(nn.Module):
         if self.model_name == 'GPT':
             output = self.encoder(ids)
         elif self.model_name == 'GPT-2':
-            output = self.encoder(ids)
+            output, _ = self.encoder(ids)
         else:
             raise NotImplementedError(f'{self.model_name} -- No such model')
 

@@ -8,23 +8,28 @@ from pytorch_pretrained_bert import GPT2Tokenizer
 PAD_VALUE = 123  # '¿'
 
 
-def vectorize(text, vocab, max_len=20):
+def vectorize(text, vocab, max_len=20, crop='post'):
 
     vectorized = []
     words = text.split()
 
     for i, word in enumerate(words):
-        # TODO: crop from the beggining for context
-        if i >= max_len:
-            break
 
         if word in vocab:
             vectorized.append(vocab[word])
         else:
             vectorized.append(vocab['<UNK>'])
+
+    if crop == 'post':
+        vectorized = vectorized[:max_len]
+    elif crop == 'pre':
+        vectorized = vectorized[-max_len:]
+    else:
+        raise NotImplementedError(f'{crop} -- no such cropping strategy')
+
     true_len = len(vectorized)
 
-    if len(words) < max_len:
+    if len(vectorized) < max_len:
         vectorized.extend([vocab['<PAD>']] * (max_len - len(words)))
         
     return vectorized, true_len
@@ -41,7 +46,6 @@ def get_tokenizer(tokenizer_name):
     return tokenizer
 
 
-
 def load_vocab(txt_path):
 
     vocab = dict()
@@ -54,9 +58,15 @@ def load_vocab(txt_path):
     return vocab
 
 
-def crop_or_pad(x, pad_value=-1, max_len=40):
+def crop_or_pad(x, pad_value=-1, max_len=40, crop='post'):
     if len(x) >= max_len:
-        x = x[:max_len]
+
+        if crop == 'post':
+            x = x[:max_len]
+        elif crop == 'pre':
+            x = x[-max_len:]
+        else:
+            raise NotImplementedError(f'{crop} -- no such cropping strategy')
     else:
         x.extend([pad_value] * (max_len - len(x)))
 
@@ -82,8 +92,8 @@ class CsvDataset(Dataset):
 
         # TODO: change to https://torchtext.readthedocs.io/en/latest/examples.html
         if self.tokenizer is None:
-            cont, true_cont_len = vectorize(self.context[item], self.word2idx, self.max_len)
-            ans, true_ans_len = vectorize(self.answer[item], self.word2idx, self.max_len)
+            cont, true_cont_len = vectorize(self.context[item], self.word2idx, self.max_len, 'pre')
+            ans, true_ans_len = vectorize(self.answer[item], self.word2idx, self.max_len, 'post')
 
             true_cont_len = torch.tensor(true_cont_len)
             true_ans_len = torch.tensor(true_ans_len)
@@ -94,8 +104,8 @@ class CsvDataset(Dataset):
             true_cont_len = torch.tensor(len(cont)) if len(cont) <= self.max_len else torch.tensor(self.max_len)
             true_ans_len = torch.tensor(len(ans)) if len(ans) <= self.max_len else torch.tensor(self.max_len)
 
-            cont = crop_or_pad(cont, pad_value=PAD_VALUE, max_len=self.max_len)
-            ans = crop_or_pad(ans, pad_value=PAD_VALUE, max_len=self.max_len)
+            cont = crop_or_pad(cont, pad_value=PAD_VALUE, max_len=self.max_len, crop='pre')
+            ans = crop_or_pad(ans, pad_value=PAD_VALUE, max_len=self.max_len, crop='post')
 
         cont = torch.tensor(cont)
         ans = torch.tensor(ans)
